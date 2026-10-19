@@ -353,7 +353,7 @@ build/libs/PackFailover-0.0.1-SNAPSHOT.jar   (~80 KB)
 
 ## 6. 如何在测试环境安全模拟 `FAILED_DOWNLOAD`
 
-**不要**改生产 DNS/防火墙，**不要**改 RPEngine 配置，**不要**让全体玩家切源。
+**不要**影响生产玩家的正常下载、改动 RPEngine 配置或让全体玩家切源。
 推荐使用插件自带的 per-player PoC 入口：
 
 ### 方式 A：重放已捕获的 RPEngine 推送（最真实）
@@ -498,7 +498,7 @@ fallback:
 ## 9. 本地 Paper 26.2 启动烟雾测试
 
 为验证插件元数据、加载顺序和 PacketEvents 钩子，本机启动了一个临时 Paper 26.2 测试服
-（非生产、非 Docker、无 FRP）：
+（非生产测试环境）：
 
 ```text
 Paper 26.2 build 134 (paper-26.2-134.jar, STABLE)
@@ -593,7 +593,6 @@ PacketEvents 均正常加载；这不是插件缺陷或 Paper 26.2 兼容性问�
 | fallback prompt 格式 | **已知降级** | 从 PacketEvents `Component` 取纯文本，格式/点击事件不保留 |
 | Floodgate 检测 | **未在真实 Bedrock 连接验证** | 反射检测，缺失时按 Java 处理 |
 | Paper 26.2 + Adventure 5.2.0 + PacketEvents 2.14.0 | **烟雾测试中确认加载；协议行为未验证** | 见第 9 节 |
-| FRP 8181/TCP 公网可达性 | **未测试** | 不在本项目内改 FRP |
 | 生产部署/回滚 | **未执行** | Stage 0 不触碰生产 |
 
 ---
@@ -662,144 +661,18 @@ PacketEvents 均正常加载；这不是插件缺陷或 Paper 26.2 兼容性问�
 
 ---
 
-## 14. 测试服部署记录（2026-10-19）
+## 14. 早期测试服验证摘要（2026-10-19）
 
-> 本节记录实际测试服环境，不是生产服。生产 `/etc/frp/frpc.toml` 未被修改。
+本节保留早期测试的协议证据与结论，不包含测试服务器的临时环境配置步骤。随后完成的实际 RPEngine 和 Java 客户端验证见第 15 节。
 
-### 14.1 实际环境
+- 测试基线：Paper 26.2 build 134、Java 25、PacketEvents 2.14.0。
+- 初期测试服务器尚未安装 RPEngine，因此最初使用测试 ZIP 验证插件加载、资源包 SHA-1 校验以及客户端回退行为。
+- 测试 ZIP 的完整 SHA-1 为 `ac92cc20f9c3daf02e4ff532b4a902de54ce4a36`，包含 `pack.mcmeta`、`pack.png` 和用于确认加载状态的语言文件。
+- HTTP 测试确认：合法资源包请求返回 `200`，返回文件的 SHA-1 与测试包一致；不存在的哈希返回 `404`。
+- 使用管理员测试命令 `/pf artifact` 和 `/pf poc send` 验证文件匹配与下载失败后的备用发送流程。
+- 后续真实 Java 客户端记录确认了 `FAILED_DOWNLOAD`、备用发送、`ACCEPTED`、`DOWNLOADED` 与最终加载成功；详细时间线和日志见第 15.8 节及之后的严格测试章节。
 
-- 测试服由 **tmux 直接运行**，不是 Docker：
-  - 路径：`<TEST_SERVER_DIR>`
-  - Paper：`paper-26.2-134.jar`，JDK 25
-  - 世界：`skyborough-test`
-  - tmux session：`test-server`
-- 本机 Docker socket 当前无权限，未发现可访问的测试服容器；未修改任何 Docker/Compose 文件。
-- 测试服原有插件：uSkyBlock、WorldEdit、WorldGuard、spark；**没有 RPEngine**。
-- `server.properties` 中 `resource-pack=` 为空，因此测试服本身不会在 join 时推送资源包。
-
-### 14.2 已安装内容
-
-```text
-<TEST_SERVER_DIR>/server/plugins/packetevents-2.14.0.jar
-<TEST_SERVER_DIR>/server/plugins/PackFailover-0.0.1-SNAPSHOT.jar
-<TEST_SERVER_DIR>/server/plugins/PackFailover/config.yml
-```
-
-启动日志确认：
-
-```text
-[PackFailover] packetevents_hooked version=2.14.0
-[PackFailover] stage0_enabled paper=26.2 java=25 packetevents=hooked ...
-[PackFailover] verifiedArtifacts=1 ...
-```
-
-### 14.3 测试资源包与 HTTP 入口
-
-```text
-SHA-1:      ac92cc20f9c3daf02e4ff532b4a902de54ce4a36
-本地 ZIP:   <TEST_SERVER_DIR>/http/packs/ac92cc20f9c3daf02e4ff532b4a902de54ce4a36.zip
-本地 URL:   http://127.0.0.1:8181/packs/ac92cc20f9c3daf02e4ff532b4a902de54ce4a36.zip
-公网 URL:   http://<TEST_SERVER_IP>:8181/packs/ac92cc20f9c3daf02e4ff532b4a902de54ce4a36.zip
-```
-
-测试包内容：
-
-- `pack.mcmeta`，`pack_format: 88`（Minecraft 26.2）
-- `pack.png`
-- `assets/minecraft/lang/en_us.json`：把泥土/钻石/石头改名为
-  `PackFailover Test ...`，用于客户端肉眼确认包已加载。
-
-HTTP 服务：
-
-- 脚本：`<TEST_SERVER_DIR>/http_server.py`
-- 绑定：`127.0.0.1:8181`
-- 仅接受 `GET/HEAD /packs/<40 位小写 hex>.zip`
-- 无目录列表、无路径穿越、无上传、无代理
-- 已有 `curl` 验证：`200` + SHA-1 一致；未知哈希 `404`
-- tmux session：`packfailover-http`
-- 已写入 `start.sh` / `stop.sh`，测试服重启后自动启动/停止
-
-### 14.4 测试 FRP（仅测试实例）
-
-修改文件：`<TEST_SERVER_DIR>/frpc.toml`（备份在
-`<TEST_SERVER_DIR>/backups/packfailover-20261019-083908/frpc.toml`）。
-
-追加：
-
-```toml
-[[proxies]]
-name = "packfailover-http-8181"
-type = "tcp"
-localIP = "127.0.0.1"
-localPort = 8181
-remotePort = 8181
-```
-
-实际 frpc 日志：
-
-```text
-proxy added: [packfailover-http-8181 skyborough-test-game-25566]
-[packfailover-http-8181] start proxy success
-[skyborough-test-game-25566] start proxy success
-```
-
-原有游戏路由 `<TEST_SERVER_IP>:25566 -> 127.0.0.1:25575` 保持不变，且公网 25566
-实测可连接。生产 `/etc/frp/frpc.toml` 未修改。
-
-### 14.5 当前阻塞：8181 防火墙
-
-本机 `curl` 公网 8181 仍然超时（`000` / connection timed out），符合“8181 尚未放行”。
-需要在 **<TEST_SERVER_IP> 的 FRPS 安全组/防火墙** 放行 `8181/TCP`；不需要改本机
-iptables（frpc 访问的是本机 127.0.0.1:8181）。
-
-放行后建议从外部网络验证：
-
-```bash
-curl -I http://<TEST_SERVER_IP>:8181/packs/ac92cc20f9c3daf02e4ff532b4a902de54ce4a36.zip
-# 期望 200, Content-Type: application/zip, Content-Length: 946
-curl -s http://<TEST_SERVER_IP>:8181/packs/ac92cc20f9c3daf02e4ff532b4a902de54ce4a36.zip | sha1sum
-# 期望 ac92cc20f9c3daf02e4ff532b4a902de54ce4a36
-```
-
-### 14.6 人工测试命令
-
-连接：`<TEST_SERVER_IP>:25566`（`online-mode=false`）。
-
-在测试服控制台（`tmux attach -t test-server`，Ctrl+B 然后 D 退出）执行：
-
-```text
-pf artifact <TEST_SERVER_DIR>/http/packs/ac92cc20f9c3daf02e4ff532b4a902de54ce4a36.zip
-pf poc send <player> ac92cc20f9c3daf02e4ff532b4a902de54ce4a36
-```
-
-> `/pf artifact` 的已验证哈希是**内存态**；测试服重启后需要重新执行一次。
-
-观察：
-
-```bash
-tail -f <TEST_SERVER_DIR>/server/logs/latest.log
-tail -f <TEST_SERVER_DIR>/server/logs/packfailover-http.log
-tail -f <TEST_SERVER_DIR>/server/logs/frpc.log
-```
-
-期望：
-
-```text
-captured ... -> FAILED_DOWNLOAD -> fallback_planned -> fallback_push_sent
--> ACCEPTED/DOWNLOADED/SUCCESSFULLY_LOADED -> recovered
-```
-
-客户端侧：资源包列表出现 `PackFailover Test Pack (Paper 26.2)`；如果语言为英文，
-泥土/钻石/石头名称变为 `PackFailover Test ...`。
-
-### 14.7 尚未完成 / 注意事项
-
-- 8181 公网防火墙尚未放行（等待用户操作）。
-- 真实 Java 客户端尚未连接测试；上述命令需要在玩家在线后执行。
-- 测试服没有 RPEngine，因此当前验证的是 Stage 0 的“合成同 UUID 包”路径；
-  真实 RPEngine 路径需要另外安装/配置 RPEngine 后再做 `/pf poc simulate`。
-- 回滚备份：`<TEST_SERVER_DIR>/backups/packfailover-20261019-083908/`
-  （`frpc.toml`、`start.sh`、`stop.sh`）。
+本节是历史测试摘要，**不是当前版本的功能声明**；请以仓库根目录 README 和 `docs/TEST-PLAN.md` 为准。
 
 ---
 
@@ -855,7 +728,7 @@ FAILED_DOWNLOAD
 - 只对 `FAILED_DOWNLOAD` 自动重试；`DECLINED`、`FAILED_RELOAD`、`INVALID_URL` 不切源。
 - 每包最多一次自动 fallback；第二次失败进入 `EXHAUSTED`。
 - 只有完整 SHA-1 且本地已校验/缓存的 ZIP 才会被发布；短哈希直接跳过。
-- HTTP 只服务缓存目录中的 `<sha1>.zip`，不接受路径、目录列表、上传或代理。
+- HTTP 只服务缓存目录中的 `<sha1>.zip`，不允许访问任意文件路径、目录列表或上传。
 - `http.public-url` 拒绝 loopback/unspecified。
 - 不使用 `setResourcePack` / `clearResourcePacks` / `removeResourcePacks`。
 - RPEngine 原包不被修改、取消或删除；成功玩家不收到额外请求。
@@ -928,7 +801,7 @@ RPEngine 输出上验证：
 - 已用 `PackFailover-0.1.0-SNAPSHOT.jar` 替换 Stage 0 jar。
 - 测试服插件 HTTP 服务接管 `127.0.0.1:8181`；Stage 0 Python 辅助服务已从
   `start.sh` / `stop.sh` 移除。
-- `test-frp` 仍在 `packfailover-http-8181` 上 `start proxy success`，游戏路由 25566 未变。
+
 - 索引/缓存实测：
 
 ```text
@@ -1043,7 +916,7 @@ provider test-packs (.../plugins/PackFailover/test-packs, glob=*.zip, max-depth=
    recovered ...
    ```
 5. 真实 RPEngine 主 URL 失败路径：仅对测试玩家阻断
-   `packs.resourcepack.ai`，不要改全局 DNS/防火墙，然后重新入服观察。
+   `packs.resourcepack.ai`，不要影响其他玩家的正常下载，然后重新入服观察。
 
 ### 15.10 真实 RPEngine + 真实客户端自动 fallback（2026-10-19 09:10）
 

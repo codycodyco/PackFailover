@@ -2,7 +2,7 @@
 
 PackFailover is a Paper plugin that gives Java Edition players a second chance when a server resource-pack **download fails**. It keeps the original resource-pack request intact. Only an eligible player who receives `FAILED_DOWNLOAD` gets a retry from an operator-hosted HTTP endpoint.
 
-The fallback serves a locally verified, **byte-identical ZIP** using the original pack UUID and full SHA-1. It does not proxy the original URL, generate resource packs, or replace RPEngine.
+The fallback serves a locally verified, **byte-identical ZIP** using the original pack UUID and full SHA-1. It does not fetch the original pack on the player's behalf, generate resource packs, or replace RPEngine.
 
 ## Compatibility and status
 
@@ -80,7 +80,7 @@ http:
 
 This is an **illustrative override**, not a replacement for the complete generated config. The shipped config currently enables `config-phase` and `allow-required` by default; setting both to `false` is a conservative recommendation until you test those cases. Never use a loopback URL as `http.public-url`.
 
-See [Installation](docs/INSTALLATION.md) for Docker/FRP examples, verification, and rollback.
+See [Installation](docs/INSTALLATION.md) for setup, verification, and rollback.
 
 ## Administration
 
@@ -104,4 +104,4 @@ The `/pf poc` commands are experimental diagnostics that can deliberately send u
 - [Contribution guidelines](CONTRIBUTING.md)
 - [Historical experiment log](docs/development/README.md)
 
-**Scope:** Java Edition packs only. No Bedrock `.mcpack` fallback, arbitrary URL proxying, or guaranteed recovery for mandatory packs.
+**Scope:** Java Edition packs only. No Bedrock `.mcpack` fallback, arbitrary file serving, or guaranteed recovery for mandatory packs.

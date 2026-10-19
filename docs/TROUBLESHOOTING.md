@@ -20,7 +20,7 @@ Use `/pf status`, `/pf index`, `/pf cache`, and `/pf debug <player>` from a perm
 ## HTTP endpoint not ready / download fails
 
 - Set `http.public-url` to a host and port the **player** can reach. `127.0.0.1` means the player's own computer and is not suitable for a remote player.
-- Confirm the listener bind address, Docker port publishing, FRP forwarding, and FRPS firewall are aligned.
+- Verify that `http.public-url` points to the running HTTP service and is accessible from the player's Minecraft client.
 - Test from an **external** device using `curl -I` and then download the full ZIP; compare its SHA-1.
 - If the HTTP port or provider directory changed, **restart** Paper. `/pf reload` alone does not reconstruct those runtime services.
 

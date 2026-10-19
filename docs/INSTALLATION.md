@@ -1,6 +1,6 @@
 # Installation and rollback
 
-PackFailover supplies a fallback HTTP URL to Java Edition clients when an eligible original resource-pack download fails. It does not replace the original RPEngine host or modify Docker/FRP settings on its own.
+PackFailover supplies a fallback HTTP URL to Java Edition clients when an eligible original resource-pack download fails. It does not replace the original RPEngine host or modify its resource-pack requests.
 
 ## Requirements
 
@@ -65,30 +65,6 @@ cache:
 
 `/pf reload` refreshes configuration, but changing an HTTP listener or provider roots requires a restart for the runtime components to reflect the changes.
 
-## Docker + FRP (example only)
-
-If Paper runs in Docker Compose and FRPC runs on the Docker host, publish the fallback listener locally by **adding** the appropriate mapping to your existing `ports` list:
-
-```yaml
-services:
-  paper:
-    ports:
-      - "127.0.0.1:8181:8181/tcp"
-```
-
-The listener within the container must bind to `0.0.0.0` to accept the forwarded connection. Add an FRP TCP proxy in the applicable test/production FRPC configuration after reviewing existing mappings:
-
-```toml
-[[proxies]]
-name = "packfailover-http-8181"
-type = "tcp"
-localIP = "127.0.0.1"
-localPort = 8181
-remotePort = 8181
-```
-
-Ensure the FRPS host and network firewall permit the public port, and `http.public-url` matches the actual public address. If port 8181 is already in use on either host, choose different ports and update the URL and mappings consistently. Never expose an administrator-only service accidentally.
-
 ## Verify
 
 From the Paper console:
@@ -116,7 +92,7 @@ The `/pf poc` commands deliberately send bad URLs and are disabled by default. T
 
 1. Disable `fallback.enabled` and restart, or stop Paper and remove the PackFailover jar.
 2. Keep a backup of `plugins/PackFailover/config.yml` and cache if investigation is still needed.
-3. Remove only the **dedicated PackFailover** Docker/FRP HTTP mappings if they are no longer needed; keep unrelated services and PacketEvents if other plugins use them.
+3. Keep other plugins and services unchanged, including PacketEvents when it is required elsewhere.
 4. Start Paper and confirm normal RPEngine uploads and resource-pack downloads continue.
 
 For common errors, see [Troubleshooting](TROUBLESHOOTING.md).

@@ -86,9 +86,9 @@ For PLAY sends, `Player#addResourcePack` is used rather than `setResourcePack`: 
 
 Provider roots, globs, candidate limits, and traversal depth come from `providers.directories`. Files are inspected outside the game thread. A candidate must be a valid ZIP containing `pack.mcmeta` and must meet the configured size limit. Hashes are computed on **entire ZIP bytes**, and the immutable cache stores entries by full SHA-1.
 
-The built-in HTTP service serves `GET` and `HEAD` for `/packs/<40-lowercase-hex>.zip`, including standard content headers and ETag support. Unmatched paths and unsupported methods are rejected. There is no generic file browser, upload endpoint, or arbitrary URL forwarding. Operators must keep the artifact source directories trusted; SHA-1 is a protocol identity check, not a substitute for authenticating uploaded files.
+The built-in HTTP service serves `GET` and `HEAD` for `/packs/<40-lowercase-hex>.zip`, including standard content headers and ETag support. Unmatched paths and unsupported methods are rejected. The service offers neither directory listings nor an upload endpoint. Operators must keep the artifact source directories trusted; SHA-1 is a protocol identity check, not a substitute for authenticating uploaded files.
 
-The HTTP bind address (inside a Docker container, often `0.0.0.0:8181`) differs from `http.public-url`, which **must** be reachable by the Minecraft client. See [Installation](INSTALLATION.md).
+The HTTP listener address and port specify where PackFailover serves files; `http.public-url` specifies the URL that **must** be reachable by Minecraft clients. See [Installation](INSTALLATION.md).
 
 ## Threading and lifecycle
 
