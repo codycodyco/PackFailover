@@ -23,6 +23,6 @@ PackFailover is a small Paper/Java plugin. Changes should keep the primary resou
 
 Describe the problem, behavior change, compatibility impact, automated tests, and any manual test limitations. Prefer narrow PRs: documentation, runtime behavior, or protocol changes should be reviewable independently. Update [Architecture](docs/ARCHITECTURE.md), [Installation](docs/INSTALLATION.md), and [Test Plan](docs/TEST-PLAN.md) when relevant.
 
-Experimental `/pf poc` commands are still present for controlled diagnostics; do not run them against production players.
+Experimental `/pf poc` commands are disabled by default and require `poc.enabled: true` plus `packfailover.admin`; do not enable them for production players.
 
 Historical development notes are retained in [docs/development](docs/development/README.md). Keep current instructions in the top-level documentation.

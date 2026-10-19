@@ -78,7 +78,7 @@ PRIMARY_PENDING --> PRIMARY_FAILED_DOWNLOAD
 
 `DOWNLOADED` is not equivalent to `SUCCESSFULLY_LOADED`. `DECLINED`, `FAILED_RELOAD`, `INVALID_URL`, and `DISCARDED` are not triggers for automatic fallback. A failed fallback does not recursively trigger another fallback.
 
-The release's intended automatic policy is **one retry per pack**. Although the current configuration parser accepts values larger than one, the fallback state path does not implement a chain of multiple automatic retries. Treat `0` as disabled and `1` as the supported retry budget.
+The release's intended automatic policy is **one retry per pack**. The configuration parser now normalizes the retry budget to `0` or `1` (warning on unsupported values), and the configuration record rejects invalid internal values. The fallback state path sends at most one automatic retry.
 
 For PLAY sends, `Player#addResourcePack` is used rather than `setResourcePack`: the latter clears existing resource packs on the tested Paper API. This matters when RPEngine stacks multiple packs.
 
