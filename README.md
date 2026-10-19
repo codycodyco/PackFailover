@@ -14,7 +14,7 @@ The fallback serves a locally verified, **byte-identical ZIP** using the origina
 | RPEngine | 0.2.20 in the recorded integration test |
 | Build | Gradle 9.8.0 wrapper |
 
-**Verified:** On a real Java client, the original RPEngine PLAY-phase pack failed to download and PackFailover retried the same pack UUID and SHA-1 from its local HTTP endpoint; the pack then downloaded and loaded successfully. See the [historical test report](docs/development/PROTOCOL-POC.md#1511-strict-verification-real-rpengine-pack-uuid-failure-to-automatic-fallback-2026-10-19-0922) (Section 15.11; the report retains earlier snapshots).
+**Verified:** On a real Java client, the original RPEngine PLAY-phase pack failed to download and PackFailover retried the same pack UUID and SHA-1 from its local HTTP endpoint; the pack then downloaded and loaded successfully. See the [historical test report](docs/development/PROTOCOL-POC.md) (Section 15.11; the report retains earlier snapshots).
 
 **Not yet fully verified:** real-client CONFIGURATION-phase recovery, `required=true` pack behavior, interaction with upstream RPEngine status/UI after a successful fallback, and an isolated main-pack failure with the other stacked packs unaffected. In the strict test, RPEngine still logged a download failure even though PackFailover recovered the client. Do not assume upstream state is synchronized.
 
