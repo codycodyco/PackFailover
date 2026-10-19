@@ -11,9 +11,9 @@ softdepend:
 commands:
   pf:
     description: PackFailover admin commands
-    usage: /pf <status|debug|index|cache|reload|artifact|poc|help>
+    usage: /pf <status|debug|index|cache|reload|artifact|help>
     permission: packfailover.admin
 permissions:
   packfailover.admin:
-    description: Access to PackFailover administration and PoC commands
+    description: Access to PackFailover administration and opt-in diagnostics
     default: op

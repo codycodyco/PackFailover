@@ -3,7 +3,7 @@ package dev.cody.packfailover.config;
 import java.util.List;
 
 /**
- * Immutable, validated Stage 1 configuration snapshot.
+ * Immutable, validated plugin configuration snapshot.
  */
 public record PoConfig(
         boolean enabled,
@@ -55,6 +55,15 @@ public record PoConfig(
             boolean configPhase,
             boolean allowRequired
     ) {
+        public Fallback {
+            if (maxAttemptsPerPack < 0 || maxAttemptsPerPack > 1) {
+                throw new IllegalArgumentException("maxAttemptsPerPack must be 0 or 1");
+            }
+        }
+
+        public static int normalizeMaxAttempts(int requested) {
+            return Math.max(0, Math.min(1, requested));
+        }
     }
 
     public record Http(
@@ -77,7 +86,7 @@ public record PoConfig(
     public record Artifacts(int maxSizeMb) {
     }
 
-    public record Poc(String badUrlTemplate) {
+    public record Poc(boolean enabled, String badUrlTemplate) {
     }
 
     public record Logging(boolean debug) {
@@ -94,7 +103,7 @@ public record PoConfig(
                 new Http(true, "0.0.0.0", 8181, "", 4, 32, 3600),
                 new Cache("plugins/PackFailover/cache"),
                 new Artifacts(100),
-                new Poc("http://127.0.0.1:1/{sha1}.zip"),
+                new Poc(false, "http://127.0.0.1:1/{sha1}.zip"),
                 new Logging(false)
         );
     }

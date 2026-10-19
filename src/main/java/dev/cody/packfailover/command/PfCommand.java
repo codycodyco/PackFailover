@@ -43,7 +43,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
- * Admin command surface for Stage 1.
+ * Administrative commands and opt-in diagnostic tools.
  */
 public final class PfCommand implements CommandExecutor, TabCompleter {
 
@@ -120,7 +120,13 @@ public final class PfCommand implements CommandExecutor, TabCompleter {
             case "cache" -> cache(sender);
             case "reload" -> reload(sender);
             case "artifact" -> artifact(sender, args);
-            case "poc" -> poc(sender, args);
+            case "poc" -> {
+                if (!config.get().poc().enabled()) {
+                    msg(sender, "PoC diagnostics are disabled. Enable poc.enabled on a test server and run /pf reload.");
+                } else {
+                    poc(sender, args);
+                }
+            }
             default -> help(sender);
         }
         return true;
@@ -129,7 +135,7 @@ public final class PfCommand implements CommandExecutor, TabCompleter {
     private void status(CommandSender sender) {
         PoConfig cfg = config.get();
         boolean httpReady = httpServer != null && httpServer.isReady();
-        msg(sender, "PackFailover Stage 1 (Paper 26.2 / Java 25)");
+        msg(sender, "PackFailover (Paper 26.2 / Java 25)");
         msg(sender, "enabled=" + cfg.enabled()
                 + " packetevents=" + (packetEventsReady.getAsBoolean() ? "ready" : "UNAVAILABLE")
                 + " http=" + (httpReady ? "ready" : "DISABLED/NOT-READY")
@@ -487,7 +493,7 @@ public final class PfCommand implements CommandExecutor, TabCompleter {
     }
 
     private void help(CommandSender sender) {
-        msg(sender, "PackFailover Stage 1 commands:");
+        msg(sender, "PackFailover commands:");
         msg(sender, "  /pf status                     - configuration, HTTP, index and counters");
         msg(sender, "  /pf debug <player>             - tracked attempts and history");
         msg(sender, "  /pf index                      - reindex provider ZIPs asynchronously");
@@ -495,10 +501,12 @@ public final class PfCommand implements CommandExecutor, TabCompleter {
         msg(sender, "  /pf reload                     - reload config.yml (restart for HTTP/providers)");
         msg(sender, "  /pf artifact <zip>             - verify + cache a local ZIP");
         msg(sender, "  /pf artifact list              - list verified SHA-1s");
-        msg(sender, "  /pf poc simulate <player>      - replay captured pack with failing URL");
+        if (config.get().poc().enabled()) {
+            msg(sender, "  /pf poc simulate <player>      - replay captured pack with failing URL");
         msg(sender, "  /pf poc send <player> <sha1>   - synthetic same-UUID PoC pack");
         msg(sender, "  /pf poc resend <player>        - explicitly push the fallback URL");
         msg(sender, "  /pf poc abort <player>         - clear PoC state");
+        }
     }
 
     private void pocHelp(CommandSender sender) {
@@ -515,10 +523,11 @@ public final class PfCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            return filter(ROOT, args[0]);
+            return filter(config.get().poc().enabled() ? ROOT : ROOT.stream().filter(s -> !s.equals("poc")).toList(), args[0]);
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (sub.equals("poc")) {
+            if (!config.get().poc().enabled()) return List.of();
             if (args.length == 2) {
                 return filter(POC, args[1]);
             }

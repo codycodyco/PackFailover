@@ -93,7 +93,7 @@ See [Installation](docs/INSTALLATION.md) for Docker/FRP examples, verification, 
 | `/pf artifact <zip>` | Verify and cache a specific ZIP |
 | `/pf reload` | Reload settings (HTTP/provider changes may need restart) |
 
-The `/pf poc` commands are experimental diagnostics that can deliberately send an unreachable pack URL to a player. They are currently available to `packfailover.admin` and **must not be used on production players**; restricting them behind a separate development-mode switch is planned.
+The `/pf poc` commands are experimental diagnostics that can deliberately send unreachable pack URLs. They are **disabled by default**; enable `poc.enabled: true` only on a controlled test server and reload configuration. The commands additionally require `packfailover.admin`.
 
 ## Documentation
 

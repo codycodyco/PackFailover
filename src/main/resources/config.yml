@@ -1,4 +1,4 @@
-# PackFailover Stage 1
+# PackFailover resource-pack failover configuration
 #
 # Passive capture + full-SHA-1 indexing + immutable cache + fallback HTTP server.
 # The original RPEngine push is never modified or cancelled.
@@ -37,6 +37,7 @@ fallback:
   enabled: true
   # Log decisions but do not send anything.
   dry-run: false
+  # 0 disables automatic retries; 1 permits one retry. More than one is not supported.
   max-attempts-per-pack: 1
   # Support resource packs that were pushed during CONFIGURATION.
   config-phase: true
@@ -62,6 +63,9 @@ artifact:
   max-size-mb: 100
 
 poc:
+  # Dangerous diagnostics: intentionally send failing pack URLs; use only on a test server.
+  # Requires packfailover.admin and a /pf reload after enabling.
+  enabled: false
   # Deliberately unreachable URL for explicit /pf poc tests.
   bad-url-template: "http://127.0.0.1:1/{sha1}.zip"
 

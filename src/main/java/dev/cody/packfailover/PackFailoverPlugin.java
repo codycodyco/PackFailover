@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * PackFailover Stage 1 entry point.
+ * Resource-pack download failover entry point.
  *
  * <p>Passively captures resource-pack pushes, indexes operator/plugin ZIP
  * directories by full SHA-1, serves immutable cached ZIPs over HTTP, and
@@ -187,18 +187,18 @@ public final class PackFailoverPlugin extends JavaPlugin {
                     period);
         }
 
-        log.info("stage1_enabled paper=26.2 java=25"
+        log.info("plugin_enabled paper=26.2 java=25"
                 + " packetevents=" + (packetEventsHooked ? "hooked" : "UNAVAILABLE")
                 + " fallbackEnabled=" + initial.fallback().enabled()
                 + " dryRun=" + initial.fallback().dryRun()
                 + " configPhase=" + initial.fallback().configPhase()
                 + " maxAttempts=" + initial.fallback().maxAttemptsPerPack()
                 + " allowlist=" + initial.tracking().primaryHostAllowlist());
-        log.info("stage1_http ready=" + (httpServer != null && httpServer.isReady())
+        log.info("http_status ready=" + (httpServer != null && httpServer.isReady())
                 + " bind=" + initial.http().bindAddress() + ":" + initial.http().port()
                 + " publicUrl=" + initial.describePublicUrl()
                 + " cache=" + (cache == null ? "<unavailable>" : cache.directory()));
-        log.info("stage1_providers " + providers.stream().map(PackProvider::description).toList());
+        log.info("providers_status " + providers.stream().map(PackProvider::description).toList());
         if (!bedrock.available()) {
             log.info("floodgate_not_present: Bedrock detection is inactive; Java packs are still gated by tracking/allowlist.");
         }

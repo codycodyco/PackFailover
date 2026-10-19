@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 /**
- * Loads and validates Stage 1 configuration. Security-relevant invalid values are
+ * Loads and validates plugin configuration. Security-relevant invalid values are
  * disabled with a warning instead of being silently accepted.
  */
 public final class ConfigManager {
@@ -51,7 +51,11 @@ public final class ConfigManager {
 
         boolean fallbackEnabled = config.getBoolean("fallback.enabled", true);
         boolean dryRun = config.getBoolean("fallback.dry-run", false);
-        int maxAttempts = clamp(config.getInt("fallback.max-attempts-per-pack", 1), 0, 5);
+        int requestedMaxAttempts = config.getInt("fallback.max-attempts-per-pack", 1);
+        int maxAttempts = PoConfig.Fallback.normalizeMaxAttempts(requestedMaxAttempts);
+        if (requestedMaxAttempts != maxAttempts) {
+            logger.warning("fallback.max-attempts-per-pack supports only 0 or 1; using " + maxAttempts + ".");
+        }
         boolean configPhase = config.getBoolean("fallback.config-phase",
                 config.getBoolean("fallback.experimental-config-phase", true));
         boolean allowRequired = config.getBoolean("fallback.allow-required", true);
@@ -71,6 +75,7 @@ public final class ConfigManager {
 
         int maxSizeMb = clamp(config.getInt("artifact.max-size-mb", 100), 1, 1024);
 
+        boolean pocEnabled = config.getBoolean("poc.enabled", false);
         String badUrlTemplate = validateTemplate(
                 config.getString("poc.bad-url-template", "http://127.0.0.1:1/{sha1}.zip"),
                 true, "poc.bad-url-template");
@@ -88,7 +93,7 @@ public final class ConfigManager {
                 new PoConfig.Http(httpEnabled, bindAddress, port, publicUrl, workerThreads, backlog, cacheControl),
                 new PoConfig.Cache(cacheDirectory),
                 new PoConfig.Artifacts(maxSizeMb),
-                new PoConfig.Poc(badUrlTemplate),
+                new PoConfig.Poc(pocEnabled, badUrlTemplate),
                 new PoConfig.Logging(debug)
         );
         this.current = loaded;
@@ -104,6 +109,9 @@ public final class ConfigManager {
         }
         if (!httpEnabled && fallbackEnabled) {
             logger.warning("fallback.enabled=true but http.enabled=false; fallback will be skipped.");
+        }
+        if (pocEnabled) {
+            logger.warning("PoC diagnostic commands enabled. Use only on a controlled test server.");
         }
         if (fallbackEnabled && dryRun) {
             logger.info("fallback is in dry-run mode; decisions are logged but nothing is sent.");
@@ -176,14 +184,14 @@ public final class ConfigManager {
     private String readPublicUrl(FileConfiguration config) {
         String raw = config.getString("http.public-url", "");
         if (raw == null || raw.isBlank()) {
-            // Backwards compatibility with the Stage 0 test-server template.
+            // Backwards compatibility with older test-server configurations.
             String legacy = config.getString("fallback.url-template", "");
             if (legacy != null && !legacy.isBlank()) {
                 String marker = "/packs/{sha1}.zip";
                 int markerIndex = legacy.indexOf(marker);
                 if (markerIndex > 0) {
                     raw = legacy.substring(0, markerIndex);
-                    logger.warning("fallback.url-template is a Stage 0 setting; using its prefix as http.public-url. "
+                    logger.warning("fallback.url-template is deprecated; using its prefix as http.public-url. "
                             + "Please set http.public-url explicitly.");
                 }
             }

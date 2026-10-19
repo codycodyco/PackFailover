@@ -353,7 +353,7 @@ class FailoverCoordinatorTest {
                 new PoConfig.Http(true, "127.0.0.1", 8181, "http://fallback.example:8181", 4, 32, 3600),
                 new PoConfig.Cache("build/test-cache"),
                 new PoConfig.Artifacts(10),
-                new PoConfig.Poc("http://127.0.0.1:1/{sha1}.zip"),
+                new PoConfig.Poc(true, "http://127.0.0.1:1/{sha1}.zip"),
                 new PoConfig.Logging(false)
         );
     }
