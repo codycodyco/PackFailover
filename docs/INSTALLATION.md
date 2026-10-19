@@ -110,7 +110,7 @@ sha1sum pack.zip
 
 Expected behavior: HTTP 200, ZIP bytes with a SHA-1 identical to the pack originally sent to the client. Test one Java player while another downloads normally. See [TEST-PLAN.md](TEST-PLAN.md) for the complete matrix.
 
-The `/pf poc` commands are diagnostic tools that deliberately send bad URLs; do not execute them on production players.
+The `/pf poc` commands deliberately send bad URLs and are disabled by default. To use them on a test server, set `poc.enabled: true`, reload configuration, and use an account with `packfailover.admin`. Do not execute them on production players.
 
 ## Rollback
 

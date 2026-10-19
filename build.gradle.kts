@@ -4,7 +4,7 @@ plugins {
 
 group = "dev.cody"
 version = "0.1.0-SNAPSHOT"
-description = "Stage 0 protocol PoC for resource-pack download failover"
+description = "Verified resource-pack download failover for Paper servers"
 
 repositories {
     mavenCentral()

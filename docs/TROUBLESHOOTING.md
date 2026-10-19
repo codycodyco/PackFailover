@@ -38,6 +38,6 @@ These paths are implemented or configurable but lack complete real-client verifi
 
 ## Diagnostic commands
 
-`/pf poc` tools simulate or replay failures with intentionally bad URLs. They are for a controlled test server, not for production-player troubleshooting. Their availability under `packfailover.admin` is a known limitation pending a dedicated development-mode gate.
+`/pf poc` tools simulate or replay failures with intentionally bad URLs. They are for a controlled test server, not for production-player troubleshooting. They require both `packfailover.admin` and `poc.enabled: true` (disabled by default); enable only on a controlled test server and run `/pf reload` after changing the setting.
 
 See [Test Plan](TEST-PLAN.md) and [Installation](INSTALLATION.md).
