@@ -40,9 +40,9 @@ fallback:
   # 0 disables automatic retries; 1 permits one retry. More than one is not supported.
   max-attempts-per-pack: 1
   # Support resource packs that were pushed during CONFIGURATION.
-  config-phase: true
+  config-phase: false
   # required=true packs may disconnect a client before fallback can help.
-  allow-required: true
+  allow-required: false
 
 http:
   enabled: true
