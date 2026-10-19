@@ -16,7 +16,7 @@ PackFailover is a small Paper/Java plugin. Changes should keep the primary resou
 - Only a matching `FAILED_DOWNLOAD` is eligible for automatic fallback. Respect user refusal and do not introduce unbounded retries.
 - Keep directory scanning, hashing, and filesystem/HTTP I/O away from the Paper main thread; use the proper scheduler for player APIs.
 - Treat CONFIGURATION status handling, mandatory packs, and multi-pack stacking as integration-sensitive.
-- Do not add hard-coded public IPs, credentials, or sensitive logs. Avoid changing users' FRP/Docker settings as part of plugin behavior.
+- Do not add hard-coded public IPs, credentials, or sensitive logs. Do not modify unrelated services or server configuration.
 - Do not claim a scenario is verified until the corresponding test evidence exists.
 
 ## Pull requests
