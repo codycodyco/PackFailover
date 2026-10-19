@@ -1,138 +1,73 @@
-# PackFailover — Installation and Rollback
+# Installation and rollback
 
-> Target: Paper 26.2 / Java 25. Test server first; do not modify production Docker Compose or
-> the production FRP configuration without an explicit review.
+PackFailover supplies a fallback HTTP URL to Java Edition clients when an eligible original resource-pack download fails. It does not replace the original RPEngine host or modify Docker/FRP settings on its own.
 
-## 1. Requirements
+## Requirements
 
-- Paper 26.2 on Java 25.
-- PacketEvents **2.14.0** installed as a plugin (the release bundle, not the thin Maven artifact).
-- A client-reachable HTTP endpoint for fallback packs, e.g. `http://packs.example.com:8181`.
-- RPEngine still configured with `host.mode: upload`; PackFailover must not replace it.
+- Paper **26.2** running on **Java 25**
+- PacketEvents **2.14.0**, installed as a server plugin
+- PackFailover jar (build with `./gradlew clean build`)
+- A player-reachable HTTP endpoint for verified fallback ZIPs (port 8181 by default)
+- Read access to the actual resource-pack ZIP files produced by RPEngine or another provider
 
-## 2. Build
+The recorded integration test used RPEngine 0.2.20 and `host.mode: upload`.
+
+## Install
+
+1. Copy `build/libs/PackFailover-0.1.0-SNAPSHOT.jar` into the Paper `plugins/` folder. Install PacketEvents separately.
+2. Start Paper once so `plugins/PackFailover/config.yml` is generated.
+3. Set `tracking.primary-host-allowlist` to the **exact original hostname** (no URL scheme, ports, or wildcard).
+4. Configure `providers.directories` with a root that actually contains the source ZIPs.
+5. Set `http.public-url` to a URL reachable by players, not the server's loopback address.
+6. Restart after HTTP bind or provider changes, then check `/pf status` and `/pf index`.
+7. Test the HTTP response and full SHA-1 from an external machine. Enable real fallback only when the source and endpoint are verified.
+
+For RPEngine:
 
 ```bash
-./gradlew clean build
+find plugins/RPEngine -maxdepth 4 -type f -name '*.zip'
 ```
 
-Artifact:
+In the recorded RPEngine 0.2.20 setup, the main bundle and rigs ZIPs were under `plugins/RPEngine/output`. Different RPEngine releases or configurations may use a different layout.
 
-```text
-build/libs/PackFailover-0.1.0-SNAPSHOT.jar
-```
+## Configuration example
 
-## 3. Install
-
-1. Copy the jar into `plugins/`.
-2. Install PacketEvents 2.14.0 into `plugins/`.
-3. Start the server once to generate `plugins/PackFailover/config.yml`.
-4. Stop the server and edit the configuration.
-5. Start the server and verify the log.
-
-## 4. Configuration
-
-Minimal production-shaped configuration:
+Edit the generated YAML; do not discard unrelated defaults:
 
 ```yaml
 enabled: true
-
 tracking:
-  track-config-phase: true
-  track-play-phase: true
   primary-host-allowlist:
     - "packs.resourcepack.ai"
-
 providers:
-  reindex-seconds: 60
-  max-candidates-per-provider: 200
   directories:
     - id: rpengine
       enabled: true
-      # VERIFY this path on the actual RPEngine version.
       path: "plugins/RPEngine/output"
       glob: "**/*.zip"
       max-depth: 3
-
 fallback:
   enabled: true
   dry-run: false
   max-attempts-per-pack: 1
-  config-phase: true
-  allow-required: true
-
+  config-phase: false
+  allow-required: false
 http:
   enabled: true
   bind-address: "0.0.0.0"
   port: 8181
   public-url: "http://packs.example.com:8181"
-  worker-threads: 4
-  backlog: 32
-  cache-control-seconds: 3600
-
 cache:
   directory: "plugins/PackFailover/cache"
-
-artifact:
-  max-size-mb: 100
-
-poc:
-  bad-url-template: "http://127.0.0.1:1/{sha1}.zip"
-
-logging:
-  debug: false
 ```
 
-### 4.1 RPEngine output path
+**Important:** Replace the example hostname with your actual public endpoint. `http.public-url` is a client-facing base URL; the plugin constructs `<public-url>/packs/<full-sha1>.zip`. The shipped `config.yml` defaults `fallback.config-phase` and `fallback.allow-required` to `true`; this example deliberately disables those **not-yet-real-client-verified** cases. Other production settings remain unchanged.
 
-The provider path is intentionally configurable. Verify it on the actual RPEngine version:
+`/pf reload` refreshes configuration, but changing an HTTP listener or provider roots requires a restart for the runtime components to reflect the changes.
 
-```bash
-find plugins/RPEngine -maxdepth 3 -type f -name '*.zip' -printf '%p %s bytes\n'
-```
+## Docker + FRP (example only)
 
-If the ZIPs are not under `plugins/RPEngine/output`, update `providers.directories[0].path`.
-Do not point the provider at a directory containing credentials, worlds, or unrelated files.
-`**/*.zip` also matches ZIPs directly at the provider root.
-
-### 4.2 Public URL
-
-`http.public-url` is the **client-facing** base URL, not the container bind address:
-
-```text
-fallback URL = <public-url>/packs/<full-sha1>.zip
-```
-
-Loopback/unspecified addresses are rejected. The HTTP server binds `bind-address:port`
-(`0.0.0.0:8181` inside a container; `127.0.0.1:8181` when only a local FRP client needs it).
-
-### 4.3 First-run checks
-
-```text
-/pf status
-/pf index
-/pf cache
-```
-
-Expected log lines:
-
-```text
-[PackFailover] packetevents_hooked version=2.14.0
-[PackFailover] http_started bind=0.0.0.0:8181 publicUrl=http://...
-[PackFailover] provider_configured id=rpengine root=...
-[PackFailover] index_done ... indexedSha1=1
-```
-
-Verify the HTTP endpoint from outside the host:
-
-```bash
-curl -I http://packs.example.com:8181/packs/<sha1>.zip
-curl -s http://packs.example.com:8181/packs/<sha1>.zip | sha1sum
-```
-
-## 5. Docker Compose (append only)
-
-Do **not** overwrite the existing `ports:` list. Append an 8181 mapping:
+If Paper runs in Docker Compose and FRPC runs on the Docker host, publish the fallback listener locally by **adding** the appropriate mapping to your existing `ports` list:
 
 ```yaml
 services:
@@ -141,12 +76,7 @@ services:
       - "127.0.0.1:8181:8181/tcp"
 ```
 
-Inside the container, set `http.bind-address: "0.0.0.0"`. The public URL remains the
-client-reachable FRPS/reverse-proxy address.
-
-## 6. FRP mapping (append only)
-
-In the **test or dedicated** `frpc.toml`:
+The listener within the container must bind to `0.0.0.0` to accept the forwarded connection. Add an FRP TCP proxy in the applicable test/production FRPC configuration after reviewing existing mappings:
 
 ```toml
 [[proxies]]
@@ -157,35 +87,36 @@ localPort = 8181
 remotePort = 8181
 ```
 
-Validate:
+Ensure the FRPS host and network firewall permit the public port, and `http.public-url` matches the actual public address. If port 8181 is already in use on either host, choose different ports and update the URL and mappings consistently. Never expose an administrator-only service accidentally.
 
-```bash
-frpc verify -c frpc.toml
+## Verify
+
+From the Paper console:
+
+```text
+/pf status
+/pf index
+/pf cache
+/pf debug <player>
 ```
 
-Then allow `8181/TCP` on the FRPS security group/host firewall. Do not modify the production
-FRP configuration as part of a test deployment.
+Confirm the PacketEvents capture hook is available, HTTP reports ready, and indexing finds at least one expected SHA-1. From a machine **outside** the Minecraft host:
 
-## 7. Verification
+```bash
+curl -I 'http://packs.example.com:8181/packs/<full-sha1>.zip'
+curl -fsS 'http://packs.example.com:8181/packs/<full-sha1>.zip' -o pack.zip
+sha1sum pack.zip
+```
 
-- `/pf status` shows `http=ready`, non-zero `indexed`, and the expected `publicUrl`.
-- `/pf cache` lists `<sha1>.zip` files.
-- A real client with a forced `FAILED_DOWNLOAD` receives exactly one fallback push with the same
-  pack UUID and SHA-1.
-- Successful players receive no extra pack, no prompt, and no delay.
-- `DECLINED` and `FAILED_RELOAD` do not trigger a source switch.
-- A second `FAILED_DOWNLOAD` does not cause a second retry.
-- Bedrock/Floodgate players are skipped.
+Expected behavior: HTTP 200, ZIP bytes with a SHA-1 identical to the pack originally sent to the client. Test one Java player while another downloads normally. See [TEST-PLAN.md](TEST-PLAN.md) for the complete matrix.
 
-See [TEST-PLAN.md](TEST-PLAN.md) for the full matrix.
+The `/pf poc` commands are diagnostic tools that deliberately send bad URLs; do not execute them on production players.
 
-## 8. Rollback
+## Rollback
 
-1. Stop the test server.
-2. Remove `plugins/PackFailover-0.1.0-SNAPSHOT.jar` and `plugins/PackFailover/`
-   (keep a backup of the config if needed).
-3. If PacketEvents was installed only for this test, remove it as well.
-4. Restore the previous `frpc.toml` / Compose file from your backup.
-5. Start the server and confirm RPEngine behaves as before.
+1. Disable `fallback.enabled` and restart, or stop Paper and remove the PackFailover jar.
+2. Keep a backup of `plugins/PackFailover/config.yml` and cache if investigation is still needed.
+3. Remove only the **dedicated PackFailover** Docker/FRP HTTP mappings if they are no longer needed; keep unrelated services and PacketEvents if other plugins use them.
+4. Start Paper and confirm normal RPEngine uploads and resource-pack downloads continue.
 
-The plugin never modifies RPEngine files, worlds, or the production Compose/FRP configuration.
+For common errors, see [Troubleshooting](TROUBLESHOOTING.md).
