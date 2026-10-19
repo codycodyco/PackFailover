@@ -1,72 +1,66 @@
-# PackFailover — Test Plan
+# Test plan and validation status
 
-> Stage 1 status: code/build/unit tests complete; real RPEngine end-to-end test still required on
-> the actual RPEngine test server.
+This document separates **automated coverage**, **recorded real-client evidence**, and **outstanding integration tests**. The historical engineering log is archived at [development/PROTOCOL-POC.md](development/PROTOCOL-POC.md). Earlier entries in that log may have been superseded; consult Sections 15.11–15.13 for the most recent PLAY verification.
 
-## 1. Automated tests
+## Automated checks
 
-Run:
+Run with Java 25:
 
 ```bash
 ./gradlew clean build
 ```
 
-Covered:
+The repository includes JUnit tests for:
 
-| Area | Cases |
-|---|---|
-| SHA-1 | full 40-hex normalization, truncation/non-hex rejection, file hashing |
-| URL policy | exact host allowlist, suffix/substring attacks, strict http(s), loopback rejection, log redaction |
-| Session store | config-phase adoption, generation increments, one fallback, rejoin budget reset, bounded history |
-| Coordinator | FAILED_DOWNLOAD -> one same-UUID/SHA-1 fallback, no loop, DECLINED/FAILED_RELOAD no retry, dry-run, missing artifact, non-allowlisted source, required policy, HTTP-not-ready, config-phase plan, terminal status |
-| Indexer | valid/invalid ZIPs, `pack.mcmeta`, fingerprint reuse, changed ZIP, old cache retention, missing provider |
-| Cache | content-addressed store, SHA-1 re-check, reuse, no partial target |
-| HTTP | GET/HEAD, exact bytes/headers, ETag/304, 404, 405, path traversal, no directory listing |
-| Provider | max depth, glob, candidate cap, missing root, symlink not followed |
-| Artifact verifier | valid ZIP, non-ZIP, missing `pack.mcmeta`, size limit, async |
+- SHA-1 normalization, full-file hashing, and artifact verification;
+- source-host allowlists and URL validation;
+- per-player sessions, connection epochs, generations, retry budgets, and stale-state handling;
+- fallback coordinator policies (eligible downloads, disabled/dry-run, missing artifacts, terminal results);
+- indexing, provider traversal, immutable cache, and HTTP GET/HEAD/error behavior.
 
-The exact test count is reported by `./gradlew test` and in the build output.
+The historical report records **72 passing JUnit tests** for its final development state. This is a **reported past run**, not a fresh CI result or verification performed during documentation cleanup.
 
-## 2. Manual test matrix
+## Real Java-client evidence (2026-10-19)
 
-| # | Scenario | Expected |
-|---|---|---|
-| 1 | Normal RPEngine download | No fallback, no extra prompt/delay |
-| 2 | One player FAILED_DOWNLOAD, hash indexed | One fallback push, same UUID/SHA-1, new URL; RECOVERED |
-| 3 | Another player downloads normally at the same time | Unaffected |
-| 4 | No matching verified artifact | `skipped reason=no_verified_artifact` |
-| 5 | HTTP server not ready / public URL missing | `skipped reason=http_not_ready` / `public_url_not_configured` |
-| 6 | Client DECLINED | No retry |
-| 7 | FAILED_RELOAD | No source switch, logged |
-| 8 | Fallback also FAILED_DOWNLOAD | EXHAUSTED, no second retry |
-| 9 | Player quits/rejoins during download | Old attempt cancelled, new epoch independent |
-| 10 | RPEngine `/rp reload` changes SHA-1 | Old cached SHA-1 remains servable; new hash indexed |
-| 11 | Same player, multiple packs | Only the failed pack retried; other packs untouched |
-| 12 | Same pack UUID pushed again | New generation, old status cannot override unlimited |
-| 13 | CONFIGURATION-phase pack failure | Config status observed via PacketEvents; one config-phase fallback |
-| 14 | `required=true` failure | Do not claim recovery; record actual client behavior |
-| 15 | Bedrock/Floodgate player | No Java pack fallback attempted |
-| 16 | HTTP invalid path/method | 404/405, no file disclosure |
-| 17 | Concurrent downloads | Bounded workers; Paper TPS unaffected |
-| 18 | Plugin disabled | RPEngine behavior restored; HTTP closed |
+| Scenario | Status | Evidence / limit |
+| --- | --- | --- |
+| RPEngine 0.2.20 PLAY push captured with UUID and full SHA-1 | Verified | Pack metadata and local output matched |
+| Original RPEngine pack UUID fails download, then local HTTP fallback succeeds | Verified | `FAILED_DOWNLOAD` -> fallback -> `DOWNLOADED` -> `SUCCESSFULLY_LOADED` |
+| Same original UUID and same SHA-1, different URL | Verified for PLAY | A real Java client used the fallback ZIP |
+| Successful source download left untouched | Supported by code/tests | Record a controlled comparison with a second player before wider release |
+| Other stacked RPEngine packs unaffected by one-pack failure | Partial | A previous exercise kept two packs loaded, but the strict failure exercise caused the rigs pack to be discarded |
+| CONFIGURATION phase, real client | Not verified | Implementation and unit tests only |
+| `required=true`, real client | Not verified | Client may disconnect before the retry completes |
+| RPEngine upstream status/UI synchronized after fallback | Not verified | Upstream still logged its original download failure |
+| Reload, multi-player, reconnect stress testing | Not fully verified | Regression scenarios remain |
 
-## 3. Real RPEngine test preparation
+## Manual regression matrix
 
-1. Confirm the RPEngine output layout:
-   ```bash
-   find plugins/RPEngine -maxdepth 3 -type f -name '*.zip' -printf '%p %s\n'
-   ```
-2. Configure `providers.directories` to the exact directory.
-3. Run `/pf index` and confirm the SHA-1 logged by `/pf debug <player>` matches an indexed ZIP.
-4. Keep RPEngine `host.mode: upload`.
-5. Force only the test player's primary download to fail (do not change global DNS/firewall).
+| Scenario | Expected behavior |
+| --- | --- |
+| Primary download succeeds | No fallback push |
+| One eligible `FAILED_DOWNLOAD` | Exactly one retry to the verified local ZIP |
+| Another player downloads normally | No additional push to that player |
+| No complete SHA-1 or verified artifact | No fallback; log a skip reason |
+| Source hostname not allowlisted | No fallback |
+| HTTP unavailable or public URL empty | No fallback |
+| `DECLINED` or `FAILED_RELOAD` | No retry |
+| Fallback download fails | End attempt; no retry loop |
+| Player disconnects or rejoins | Previous session cannot affect the new session |
+| Upstream pushes same UUID again | New generation replaces the old tracked attempt |
+| RPEngine regenerates ZIPs on reload | New hash indexed; active old cache stays servable |
+| Multiple packs stacked | Only the failed pack is retried; other packs are not popped |
+| CONFIGURATION phase | Capture and status correlation, then validated fallback |
+| Mandatory pack failure | Record actual disconnection and retry ordering |
+| Bedrock/Floodgate client | No Java pack fallback when detected |
+| Invalid HTTP path or method | No arbitrary file disclosure |
+| PacketEvents missing/unavailable | Clear diagnostics; no unhandled server crash |
+| Plugin disabled | Original provider behavior is unchanged |
 
-## 4. Stage 1 sign-off
+**End-to-end acceptance:** Run tests on a non-production server with a real Java client, matching verified ZIP and reachable HTTP server. Capture client behavior, HTTP requests, pack UUID, SHA-1, and both the primary and fallback statuses. Do not infer a real download from a client-side SHA-1 cache hit; use a fresh pack hash or clear the test client cache.
 
-Stage 1 is not complete until one real Java client demonstrates:
+## Release blockers
 
-- primary download failure -> one same-UUID/SHA-1 fallback -> successful load;
-- RPEngine's own state/UI remains correct;
-- no duplicate pack stacking or clearing of other packs;
-- another player remains unaffected;
-- CONFIGURATION and PLAY scenarios are both recorded (where applicable).
+The core PLAY path has real-client evidence; general compatibility is **not** established. Before presenting CONFIGURATION and mandatory pack support as validated, execute corresponding real-client tests. Investigate RPEngine's own failure state when a downstream fallback succeeds, and test a failing main pack with a healthy rigs pack.
+
+Keep raw logs and timed test notes in a development log, not inline in installation documentation.
