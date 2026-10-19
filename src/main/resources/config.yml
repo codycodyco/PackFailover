@@ -1,0 +1,69 @@
+# PackFailover Stage 1
+#
+# Passive capture + full-SHA-1 indexing + immutable cache + fallback HTTP server.
+# The original RPEngine push is never modified or cancelled.
+
+enabled: true
+
+tracking:
+  track-config-phase: true
+  track-play-phase: true
+  # Exact hostnames only. No wildcards, no substrings, no scheme/port.
+  primary-host-allowlist:
+    - "packs.resourcepack.ai"
+  max-tracked-players: 256
+  history-per-player: 16
+
+providers:
+  # 0 disables periodic reindexing; /pf index still works.
+  reindex-seconds: 60
+  max-candidates-per-provider: 200
+  directories:
+    # Verify the actual output directory on your RPEngine version.
+    - id: rpengine
+      enabled: true
+      path: "plugins/RPEngine/output"
+      glob: "**/*.zip"
+      max-depth: 3
+    # Optional additional directory (for example a manual pack drop).
+    - id: manual
+      enabled: false
+      path: "plugins/PackFailover/packs"
+      glob: "*.zip"
+      max-depth: 1
+
+fallback:
+  # Automatic retry on FAILED_DOWNLOAD for allowlisted sources.
+  enabled: true
+  # Log decisions but do not send anything.
+  dry-run: false
+  max-attempts-per-pack: 1
+  # Support resource packs that were pushed during CONFIGURATION.
+  config-phase: true
+  # required=true packs may disconnect a client before fallback can help.
+  allow-required: true
+
+http:
+  enabled: true
+  # Bind inside the container/host. Use 0.0.0.0 when Docker publishes the port.
+  bind-address: "0.0.0.0"
+  port: 8181
+  # Client-facing base URL. MUST be reachable by the player.
+  # Example: "http://packs.example.com:8181"
+  public-url: ""
+  worker-threads: 4
+  backlog: 32
+  cache-control-seconds: 3600
+
+cache:
+  directory: "plugins/PackFailover/cache"
+
+artifact:
+  max-size-mb: 100
+
+poc:
+  # Deliberately unreachable URL for explicit /pf poc tests.
+  bad-url-template: "http://127.0.0.1:1/{sha1}.zip"
+
+logging:
+  debug: false

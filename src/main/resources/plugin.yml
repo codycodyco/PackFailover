@@ -1,0 +1,19 @@
+name: PackFailover
+version: '${version}'
+main: dev.cody.packfailover.PackFailoverPlugin
+api-version: '26.2'
+description: Verified resource-pack download failover for Paper 26.2 / Java 25
+author: cody
+softdepend:
+  - packetevents
+  - Floodgate
+  - Geyser-Spigot
+commands:
+  pf:
+    description: PackFailover admin commands
+    usage: /pf <status|debug|index|cache|reload|artifact|poc|help>
+    permission: packfailover.admin
+permissions:
+  packfailover.admin:
+    description: Access to PackFailover administration and PoC commands
+    default: op

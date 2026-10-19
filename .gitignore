@@ -1,0 +1,13 @@
+# Gradle / build outputs
+.gradle/
+.gradle-home/
+.gradle-native/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Local test-server deployment scripts (contain host-specific paths/IPs)
+tools/
